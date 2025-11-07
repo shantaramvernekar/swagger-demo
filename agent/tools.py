@@ -1,9 +1,9 @@
 from typing import Optional, List, Dict, Any
 import requests
-from langchain.tools import Tool
+from langchain.tools import StructuredTool
 
 
-def create_api_tools(api_base_url: str, api_key: Optional[str] = None) -> List[Tool]:
+def create_api_tools(api_base_url: str, api_key: Optional[str] = None) -> List[StructuredTool]:
     """
     Create tools for interacting with the REST API.
     """
@@ -143,42 +143,42 @@ def create_api_tools(api_base_url: str, api_key: Optional[str] = None) -> List[T
     
     # Create Tool objects
     tools = [
-        Tool(
+        StructuredTool.from_function(
             name="health_check",
             func=health_check,
             description="Check if the API is healthy and running"
         ),
-        Tool(
+        StructuredTool.from_function(
             name="create_item",
             func=create_item,
             description="Create a new item with name, price, and optional tags"
         ),
-        Tool(
+        StructuredTool.from_function(
             name="list_items",
             func=list_items,
             description="List all items, optionally filtered by search query"
         ),
-        Tool(
+        StructuredTool.from_function(
             name="get_item",
             func=get_item,
             description="Get details of a specific item by its ID"
         ),
-        Tool(
+        StructuredTool.from_function(
             name="update_item",
             func=update_item,
             description="Update an existing item's name, price, and tags"
         ),
-        Tool(
+        StructuredTool.from_function(
             name="delete_item",
             func=delete_item,
             description="Delete an item by its ID"
         ),
-        Tool(
+        StructuredTool.from_function(
             name="upload_file",
             func=upload_file,
             description="Upload a file to the server"
         ),
-        Tool(
+        StructuredTool.from_function(
             name="get_secret",
             func=get_secret,
             description="Get secret from secure endpoint (requires API key)"
