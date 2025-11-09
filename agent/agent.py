@@ -73,30 +73,99 @@ Always be helpful, clear, and informative. If an operation fails, explain what w
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ])
     
+    @staticmethod
+    def _serialize_step_value(value: Any) -> Any:
+        """Convert step values to JSON-serialisable primitives when possible."""
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        if isinstance(value, dict):
+            return {
+                key: RESTAPIAgent._serialize_step_value(sub_value)
+                for key, sub_value in value.items()
+            }
+        if isinstance(value, (list, tuple)):
+            return [RESTAPIAgent._serialize_step_value(item) for item in value]
+        return str(value)
+
+    @staticmethod
+    def _normalise_step(action: Any, observation: Any) -> Dict[str, Any]:
+        """Normalise a LangChain intermediate step into a uniform dictionary."""
+        thought: Optional[str] = None
+
+        if getattr(action, "log", None):
+            thought = str(action.log).strip()
+        elif getattr(action, "message_log", None):
+            message_contents: List[str] = []
+            for message in action.message_log:
+                content = getattr(message, "content", None)
+                if isinstance(content, list):
+                    # Some message content can be a list of dict chunks. Render as string.
+                    message_contents.append(str(content))
+                elif content:
+                    message_contents.append(str(content))
+            if message_contents:
+                thought = "\n".join(message_contents)
+        elif isinstance(action, dict) and action.get("thought"):
+            thought = str(action["thought"])
+
+        action_name: Optional[str] = None
+        if getattr(action, "tool", None):
+            action_name = str(action.tool)
+        elif isinstance(action, dict) and action.get("action"):
+            action_name = str(action["action"])
+
+        tool_input: Any = None
+        if getattr(action, "tool_input", None) is not None:
+            tool_input = action.tool_input
+        elif isinstance(action, dict) and action.get("tool_input") is not None:
+            tool_input = action["tool_input"]
+        elif isinstance(action, dict) and action.get("input") is not None:
+            tool_input = action["input"]
+
+        return {
+            "thought": thought,
+            "action": action_name,
+            "input": RESTAPIAgent._serialize_step_value(tool_input),
+            "observation": RESTAPIAgent._serialize_step_value(observation),
+        }
+
     def run(self, query: str) -> Dict[str, Any]:
         """
         Execute a user query using the agent.
-        
+
         Args:
             query: User's natural language request
-            
+
         Returns:
-            Dictionary with response and metadata
+            Dictionary containing the final output and structured reasoning steps.
         """
         # Get conversation history
         chat_history = self.memory.get_history()
-        
+
         # Run agent
         result = self.executor.invoke({
             "input": query,
             "chat_history": chat_history
         })
-        
+
+        raw_intermediate_steps = result.get("intermediate_steps", [])
+        structured_steps: List[Dict[str, Any]] = []
+
+        for step in raw_intermediate_steps:
+            if isinstance(step, (list, tuple)) and len(step) == 2:
+                action, observation = step
+            else:
+                action, observation = step, None
+            structured_steps.append(self._normalise_step(action, observation))
+
         # Save to memory
         self.memory.add_message(HumanMessage(content=query))
         self.memory.add_message(AIMessage(content=result["output"]))
-        
-        return result
+
+        return {
+            **{k: v for k, v in result.items() if k != "intermediate_steps"},
+            "reasoning": structured_steps,
+        }
     
     def clear_memory(self):
         """Clear conversation history."""
