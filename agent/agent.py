@@ -7,6 +7,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from .tools import create_api_tools
 from .memory import ConversationMemory
+from .callbacks import ConsoleCallbackHandler
 
 
 class RESTAPIAgent:
@@ -33,21 +34,25 @@ class RESTAPIAgent:
         
         # Create agent prompt
         self.prompt = self._create_prompt()
-        
+
+        # Configure callbacks for live reasoning logs
+        self.callback_handler = ConsoleCallbackHandler()
+
         # Create agent
         self.agent = create_openai_functions_agent(
             llm=self.llm,
             tools=self.tools,
             prompt=self.prompt
         )
-        
+
         # Create agent executor
         self.executor = AgentExecutor(
             agent=self.agent,
             tools=self.tools,
             verbose=True,
             return_intermediate_steps=True,
-            handle_parsing_errors=True
+            handle_parsing_errors=True,
+            callbacks=[self.callback_handler]
         )
     
     def _create_prompt(self) -> ChatPromptTemplate:
