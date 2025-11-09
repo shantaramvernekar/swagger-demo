@@ -33,6 +33,18 @@ def main():
     for query in queries:
         print(f"User: {query}")
         result = agent.run(query)
+        reasoning_steps = result.get("reasoning", [])
+
+        if reasoning_steps:
+            print("Reasoning Trail:")
+            for idx, step in enumerate(reasoning_steps, start=1):
+                thought = step.get("thought") or "(no thought provided)"
+                action = step.get("action") or "(no tool)"
+                observation = step.get("observation") or "(no observation)"
+                print(f"  {idx}. Thought: {thought}")
+                print(f"     Tool: {action}")
+                print(f"     Result: {observation}\n")
+
         print(f"Agent: {result['output']}\n")
         print("-" * 50)
     
@@ -52,6 +64,18 @@ def main():
             continue
         
         result = agent.run(query)
+        reasoning_steps = result.get("reasoning", [])
+
+        if reasoning_steps:
+            print("Reasoning Trail:")
+            for idx, step in enumerate(reasoning_steps, start=1):
+                thought = step.get("thought") or "(no thought provided)"
+                action = step.get("action") or "(no tool)"
+                observation = step.get("observation") or "(no observation)"
+                print(f"  {idx}. Thought: {thought}")
+                print(f"     Tool: {action}")
+                print(f"     Result: {observation}\n")
+
         print(f"Agent: {result['output']}\n")
 
 
